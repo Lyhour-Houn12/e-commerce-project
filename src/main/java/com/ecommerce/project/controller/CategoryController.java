@@ -38,30 +38,30 @@ public class CategoryController {
             @ApiResponse(responseCode = "400", description = "Invalid Input", content = @Content),
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
     })
-    @PostMapping()
+    @PostMapping("admin/category")
     public ResponseEntity<?> createCategory(@Valid @RequestBody CategoryDTO categoryDTO) {
         CategoryDTO savedCategoryDTO = categoryService.addCategory(categoryDTO);
         return new  ResponseEntity<>(savedCategoryDTO, HttpStatus.CREATED);
     }
     @Tag(name = "Category APIs", description = "APIs for managing categories")
-    @GetMapping("/public/categories")
+    @GetMapping("/admin/categories")
     public ResponseEntity<?> getCategories(@RequestParam(value = "pageNumber", defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
                                            @RequestParam(value = "pageSize", defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
                                            @RequestParam(value = "sortBy", defaultValue = AppConstants.SORT_CATEGORY_BY, required = false) String sortBY,
                                            @RequestParam(value = "sortOrder", defaultValue = AppConstants.SORT_DIR, required = false) String sortOrder ) {
         return new ResponseEntity<>(categoryService.getAllCategories(pageNumber, pageSize, sortBY, sortOrder), HttpStatus.OK);
     }
-    @GetMapping("/{categoryId}")
+    @GetMapping("/admin/{categoryId}")
     public ResponseEntity<?> getCategory(@PathVariable Long categoryId) {
         return new ResponseEntity<>(categoryService.getCategoryById(categoryId), HttpStatus.OK);
     }
-    @DeleteMapping("{categoryId}")
+    @DeleteMapping("/admin/{categoryId}")
     public ResponseEntity<?> deleteCategory(@PathVariable Long categoryId) {
         String message = String.format("Category with id: %d was deleted", categoryId);
         categoryService.deleteCategory(categoryId);
         return ResponseEntity.ok(message);
     }
-    @PutMapping("/{categoryId}")
+    @PutMapping("/admin/{categoryId}")
     public ResponseEntity<?> updateCategory(@Valid @RequestBody CategoryDTO categoryDTO, @PathVariable Long categoryId) {
         CategoryDTO updateCategory = categoryService.updateCategory(categoryDTO, categoryId);
         return ResponseEntity.ok(updateCategory);

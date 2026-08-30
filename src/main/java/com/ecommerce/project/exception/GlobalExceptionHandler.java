@@ -40,4 +40,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(message,HttpStatus.NOT_FOUND);
 
     }
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<?> handleAuthException(AuthException e){
+        APIResponse message = new APIResponse();
+        message.setMessage(e.getMessage());
+        message.setStatus(false);
+        return new ResponseEntity<>(message,HttpStatus.UNAUTHORIZED);
+    }
 }

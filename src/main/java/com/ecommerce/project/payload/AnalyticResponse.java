@@ -1,6 +1,6 @@
 package com.ecommerce.project.payload;
 
-import com.ecommerce.project.entity.Cart;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CartItemDTO {
-    private Long productId;
-    private Integer quantity;
+public class AnalyticResponse {
+    private  String productCount;
+    private String totalRevenue;
+    private String totalOrder;
 }

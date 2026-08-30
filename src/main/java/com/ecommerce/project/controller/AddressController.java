@@ -46,6 +46,4 @@ public class AddressController {
         addressService.deleteAddress(addressId);
         return ResponseEntity.ok(message);
     }
-
-
 }

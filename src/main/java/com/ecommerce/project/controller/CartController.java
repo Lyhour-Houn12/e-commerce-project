@@ -1,10 +1,13 @@
 package com.ecommerce.project.controller;
 
 import com.ecommerce.project.entity.Cart;
+import com.ecommerce.project.entity.CartItem;
 import com.ecommerce.project.payload.CartDTO;
+import com.ecommerce.project.payload.CartItemDTO;
 import com.ecommerce.project.repository.CartRepository;
 import com.ecommerce.project.service.CartService;
 import com.ecommerce.project.util.AuthUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,12 @@ public class CartController {
 
     private final AuthUtil authUtil;
     private final CartRepository cartRepository;
+
+    @PostMapping("/cart/create")
+    public ResponseEntity<String> addProductToCart(@Valid @RequestBody List<CartItemDTO> cartItems) {
+        String cart = cartService.createOrUpdateCartWithItem(cartItems);
+        return new ResponseEntity<>(cart, HttpStatus.CREATED);
+    }
 
     @PostMapping("/carts/product/{productId}/quantity/{quantity}")
     public ResponseEntity<?> addProductToCart(@PathVariable Long productId, @PathVariable Integer quantity) {

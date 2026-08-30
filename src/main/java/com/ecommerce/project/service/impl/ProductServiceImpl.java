@@ -3,6 +3,7 @@ package com.ecommerce.project.service.impl;
 import com.ecommerce.project.entity.Cart;
 import com.ecommerce.project.entity.Category;
 import com.ecommerce.project.entity.Product;
+import com.ecommerce.project.entity.User;
 import com.ecommerce.project.exception.APIException;
 import com.ecommerce.project.exception.ResourceNotFoundException;
 import com.ecommerce.project.payload.CartDTO;
@@ -11,10 +12,12 @@ import com.ecommerce.project.payload.ProductResponse;
 import com.ecommerce.project.repository.CartRepository;
 import com.ecommerce.project.repository.CategoryRepository;
 import com.ecommerce.project.repository.ProductRepository;
+import com.ecommerce.project.service.AuthService;
 import com.ecommerce.project.service.CartService;
 import com.ecommerce.project.service.FileService;
 import com.ecommerce.project.service.ProductService;
 import com.ecommerce.project.service.util.Utility;
+import com.ecommerce.project.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.modelmapper.ModelMapper;
@@ -41,6 +44,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ModelMapper modelMapper;
     private final FileService fileService;
+    private final AuthUtil authUtil;
 
     @Value("${project.image}")
     private String path;
@@ -55,6 +59,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = modelMapper.map(productDTO, Product.class);
         product.setImage("default.png");
         product.setCategory(savedCategory);
+        product.setUser(authUtil.loggedUser());
         double specialPrice = product.getPrice() -((product.getDiscount() * 0.01) * product.getPrice());
         product.setSpecialPrice(specialPrice);
 
@@ -200,6 +205,30 @@ public class ProductServiceImpl implements ProductService {
         // return DTO after mapping product to DTO
         productFromDb = productRepository.save(productFromDb);
         return modelMapper.map(productFromDb, ProductDTO.class);
+    }
+
+    @Override
+    public ProductResponse getAllProductsForSeller(Integer pageNumber, Integer pageSize, String sortBy, String sortDir, String keyword, String category) {
+        Sort sortByAndOrder = sortDir.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, sortByAndOrder);
+
+        Specification<Product> spec = getProductSpecification(keyword, category);
+
+        User sellerProduct = authUtil.loggedUser();
+        Page<Product> products = productRepository.findByUser(sellerProduct ,spec, pageable);
+        if(products.isEmpty()){
+            throw new APIException("Product list is empty");
+        }
+        List<ProductDTO> productDTOs = products.stream()
+                .map(product -> {
+                    ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
+                    productDTO.setImage(constructImage(product.getImage()));
+                    return productDTO;
+                })
+                .toList();
+        return Utility.getProductResponse(productDTOs, products);
     }
 
     private Product findProductById(Long productId){

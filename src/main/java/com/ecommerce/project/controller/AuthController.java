@@ -1,4 +1,5 @@
 package com.ecommerce.project.controller;
+import com.ecommerce.project.config.AppConstants;
 import com.ecommerce.project.entity.Role;
 import com.ecommerce.project.entity.User;
 import com.ecommerce.project.entity.enumerated.RoleApp;
@@ -10,8 +11,12 @@ import com.ecommerce.project.security.request.SignUpRequest;
 import com.ecommerce.project.security.response.MessageResponse;
 import com.ecommerce.project.security.response.UserInfoResponse;
 import com.ecommerce.project.security.services.UserDetailsImpl;
+import com.ecommerce.project.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -31,109 +36,36 @@ import java.util.*;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    private final JwtUtils jwtUtils;
-
-    private final AuthenticationManager authenticationManager;
-
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final PasswordEncoder encoder;
+    private final AuthService authService;
 
     @PostMapping("/signin")
     public ResponseEntity<?> singIn(@Valid @RequestBody LoginRequest  loginRequest) {
-        Authentication authentication;
-        try {
-            authentication = authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-        } catch (AuthenticationException e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("Message", "Invalid username and password.");
-            response.put("Status", false);
-            return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
-        }
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .toList();
-        UserInfoResponse  userInfoResponse = new UserInfoResponse(userDetails.getId(), jwtToken, userDetails.getUsername(), userDetails.getEmail(), roles);
-        return ResponseEntity
-                .ok()
-                //.header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
-                .body(userInfoResponse);
+        return ResponseEntity.ok(authService.login(loginRequest));
     }
 
 
-    @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignUpRequest signUpRequest) {
-        if (userRepository.existsByUserName(signUpRequest.getUsername())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
+        @PostMapping("/signup")
+        public ResponseEntity<?> registerUser(@Valid @RequestBody SignUpRequest signUpRequest) {
+            authService.signUp(signUpRequest);
+            return new ResponseEntity<>(new MessageResponse("User registered successfully"), HttpStatus.CREATED);
         }
-
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
-        }
-
-        // Create new user's account
-        User user = new User(
-                signUpRequest.getUsername(),
-                signUpRequest.getEmail(),
-                encoder.encode(signUpRequest.getPassword()));
-
-        Set<String> strRoles = signUpRequest.getRole();
-        Set<Role> roles = new HashSet<>();
-
-        if (strRoles == null) {
-            Role userRole = roleRepository.findByRoleName(RoleApp.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-            roles.add(userRole);
-        } else {
-            strRoles.forEach(role -> {
-                switch (role) {
-                    case "admin":
-                        Role adminRole = roleRepository.findByRoleName(RoleApp.ROLE_ADMIN)
-                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-                        roles.add(adminRole);
-                        break;
-                    case "seller":
-                        Role modRole = roleRepository.findByRoleName(RoleApp.ROLE_SELLER)
-                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-                        roles.add(modRole);
-                        break;
-                    default:
-                        Role userRole = roleRepository.findByRoleName(RoleApp.ROLE_USER)
-                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-                        roles.add(userRole);
-                }
-            });
-        }
-
-        user.setRoles(roles);
-        userRepository.save(user);
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
-    }
 
     @GetMapping("/username")
-    public String getUsername(Authentication authentication) {
-        String username = authentication.getName();
-        if(username != null){
-            return username;
-        }else{
-            return " ";
-        }
+    public ResponseEntity<String> getUsername(Authentication authentication) {
+        String username = authService.getUsername(authentication);
+        return ResponseEntity.ok(username);
     }
     @GetMapping("/user")
     public ResponseEntity<?> getUser(Authentication authentication) {
-        UserDetailsImpl userDetails= (UserDetailsImpl) authentication.getPrincipal();
+        UserInfoResponse response = authService.getUserInfo(authentication);
+        return  ResponseEntity.ok(response);
 
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .toList();
-        UserInfoResponse userInfoResponse = new  UserInfoResponse(userDetails.getId(), null, userDetails.getUsername(), userDetails.getEmail(), roles);
-        return  ResponseEntity.ok(userInfoResponse);
-
+    }
+    @GetMapping("/sellers")
+    public ResponseEntity<?> getSellers(@RequestParam(name = "pageNumber", defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber, @RequestParam(name = "pageSize", defaultValue = "10", required = false) Integer pageSize) {
+        Sort sortByOrder = Sort.by(AppConstants.SORT_USERS_BY).descending();
+        Pageable pageable = PageRequest.of(pageNumber , pageSize, sortByOrder);
+        return ResponseEntity.ok(authService.getAllUserSeller(pageable));
     }
 
 
